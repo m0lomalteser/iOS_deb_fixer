@@ -1,0 +1,48 @@
+name: Fix Old DEB Package Compression
+on: [push, workflow_dispatch]
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y binutils xz-utils tar gzip
+
+      - name: Convert DEB Data Archive
+        run: |
+          # Find the .deb file in the workspace
+          DEB_FILE=$(find . -maxdepth 1 -name "*.deb" | head -n 1)
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found!"
+            exit 1
+          fi
+          
+          echo "Processing $DEB_FILE..."
+          mkdir extracted && cd extracted
+          ar x ../$DEB_FILE
+          
+          # Unpack the modern compression (lzma or xz)
+          if [ -f "data.tar.lzma" ]; then
+            unlzma data.tar.lzma
+          elif [ -f "data.tar.xz" ]; then
+            xz -d data.tar.xz
+          fi
+          
+          # Repack into old-school gzip format
+          tar -xf data.tar
+          rm data.tar
+          tar -czf data.tar.gz * --exclude=data.tar.gz
+          
+          # Rebuild the .deb package
+          ar rcs ../fixed_$DEB_FILE debian-binary control.tar.gz data.tar.gz
+          cd ..
+          echo "Successfully created fixed_$DEB_FILE"
+
+      - name: Upload Fixed DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed-deb-package
+          path: fixed_*.deb
