@@ -13,12 +13,13 @@ jobs:
 
       - name: Convert DEB Data Archive
         run: |
-          DEB_FILE=$(find . -maxdepth 1 -name "*.deb" | head -n 1)
-          if [ -z "$DEB_FILE" ]; then
+          DEB_PATH=$(find . -maxdepth 1 -name "*.deb" | head -n 1)
+          if [ -z "$DEB_PATH" ]; then
             echo "No .deb file found!"
             exit 1
           fi
           
+          DEB_FILE=$(basename "$DEB_PATH")
           echo "Processing $DEB_FILE..."
           mkdir extracted && cd extracted
           ar x ../$DEB_FILE
